@@ -1,0 +1,224 @@
+-- 1) Retrieve number of students who have a value in their age 
+select * 
+from Student 
+where Student.St_Age is not null 
+
+-- 2) Get all instructor names without repetition (DISTINCT) 
+select distinct Ins_Name
+from Instructor 
+
+-- 3) Display student with the following format: Student ID, Student Full
+-- Name, Department Name using ISNULL
+
+select St_Id, St_Fname + ' ' + St_Lname as Full_Name, ISNULL(Dept_Name,'No Department associated') as Department_Name
+From Student 
+left join Department 
+ on Student.Dept_Id = Department.Dept_Id
+
+
+
+-- 4) Display instructor name and department name. Display all instructors
+-- whether attached to a department or not
+
+select Ins_Name, Dept_Name 
+From Instructor 
+left join Department 
+ on Instructor.Dept_Id = Department.Dept_Id
+
+
+-- 5) Display student full name and the course name for only courses which
+-- have a grade
+
+select St_Fname + ' ' + St_Lname as Full_Name, Crs_Name 
+From Student 
+inner join Stud_Course
+ on Student.St_id = Stud_Course.St_id 
+inner join Course
+ on Stud_Course.Crs_id = Course.Crs_id 
+where Grade is not null 
+
+-- 6) Display number of courses for each topic name
+
+select Top_Name, count(Crs_Id) as NO_Courses
+from Topic 
+inner join Course
+ on Topic.Top_id = Course.Top_id
+group by Top_Name
+
+
+-- 7) Display maximum and minimum salary for instructors
+
+select max(Salary) as MaxSalary , min(Salary) as MinSalary
+from Instructor
+
+-- 8) Display instructors who have salaries less than the average salary of all
+-- instructors
+
+declare @avgSalary int = (select avg(Salary) from Instructor) 
+select Ins_Name, Salary 
+from Instructor 
+where Salary <= @avgSalary
+
+
+-- 9) Display the department name that contains the instructor who receives
+-- the minimum salary
+
+declare @minSalary int = (select min(salary) from instructor)
+select dept_name 
+from Department D
+inner join Instructor I
+ on D.dept_id = I.dept_id 
+where salary = @minSalary
+
+-- 10) Select instructor name and salary, but if salary is NULL display
+-- 'Bonus' using COALESCE function
+
+select Ins_name, coalesce(salary,'Bonus') 
+from Instructor
+
+
+-- 11) Display instructors ordered by salary descending (ORDER BY)
+
+select ins_name, salary 
+from instructor 
+order by (salary) desc
+
+-- 12) Display the top 5 highest paid instructors (TOP with ORDER BY)
+
+select top(5) ins_name, salary 
+from instructor
+order by (salary) desc
+
+-- 13) Display the top 3 departments with the most students (TOP and
+-- ORDER BY)
+
+select top(3) dept_name, count(st_id) as NO_Students
+from department d
+inner join student s
+ on d.dept_id = s.dept_id 
+group by dept_name 
+order by count(st_id) desc
+
+
+-- 14) Create an encrypted view that displays manager names and the topics
+-- they teach
+
+-- Get the manager from dept_manager = dept_id in instructor 
+-- get the crs id from ins_course 
+-- find out the topics from top id 
+-- select the manager name and group by the topics names 
+create view manager_topics
+with encryption 
+as 
+	select Ins_name as 'Manger_Named', top_name
+	from Instructor I
+	inner join Department D 
+	 on I.Ins_id = D.Dept_manager 
+	inner join Ins_course IC
+	 on I.Ins_id = IC.Ins_id 
+	inner join Course C
+	 on C.crs_id = IC.Crs_id
+	inner join Topic T
+	 on T.top_id = C.top_id
+
+ select * from manager_topics
+
+
+-- 15) Create a view that displays instructor name and department name for
+-- the 'SD' or 'Java' department
+
+create view ins_dept 
+as 
+select ins_name, dept_name 
+from instructor i
+inner join department d
+ on i.dept_id = d.dept_id 
+where dept_name = 'SD' or dept_name = 'Java'
+
+select * from ins_dept
+
+
+-- 16) Create a view "V1" that displays student data for students who live in
+-- Alex or Cairo
+
+create view V1 
+as
+select * 
+from student 
+where st_address in ('Alex','Cairo')
+
+select * from V1
+
+
+-- 17) Create a view that displays student full name and course name if the
+-- student has a grade more than 50
+
+create view st_course_grade50
+as 
+select st_fname + ' ' + st_lname as 'Full Name', crs_name, grade
+from student 
+inner join stud_course 
+ on student.st_id = stud_course.st_id
+inner join Course C
+ on stud_course.crs_id = C.crs_id 
+where grade > 50 
+
+select * from st_course_grade50
+
+---18) Write a query using CTE to display department name with the
+---maximum number of students
+
+with deptMaxStudCnt as 
+(
+  select top (1)
+      dept_name,
+      count(st_id) as studentcount
+  from department d
+  inner join student s
+      on d.dept_id = s.dept_id
+  group by dept_name
+  order by count(st_id) desc
+)
+select *
+from deptmaxstudcnt;
+
+
+---19) Write a query using CTE to display the second highest salary
+---instructor in each department
+
+with secondhighestsalary as (
+  select
+      dept_name,
+      ins_name,
+      salary,
+      dense_rank() over (
+            partition by dept_name
+            order by salary desc
+        ) as rnk
+   from department d
+   inner join instructor i
+      on i.dept_id = d.dept_id
+)
+select *
+from secondhighestsalary
+where rnk = 2;
+
+---20) Write a query using CTE to display the top 2 highest-paid instructors
+---in each department
+
+with topTwoHighestSalary as (
+  select
+      dept_name,
+      ins_name,
+      salary,
+      dense_rank() over (
+            partition by dept_name
+            order by salary desc
+        ) as rnk
+   from department d
+   inner join instructor i
+      on i.dept_id = d.dept_id
+)
+select *
+from topTwoHighestSalary
+where rnk in (1,2);
